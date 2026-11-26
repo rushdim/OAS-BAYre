@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cars · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2>Cars</h2>
+      <a class="btn btn-accent" href="car-new.html">+ Register Car</a>
+    </div>
+
+    <div class="search-bar">
+      <form id="searchForm">
+        <input type="text" id="q" placeholder="Search by plate number..." />
+      </form>
+    </div>
+
+    <div class="card"><div id="table"></div></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    async function load(q = "") {
+      const { cars } = await apiFetch("/api/cars" + (q ? `?q=${encodeURIComponent(q)}` : ""));
+      const table = document.getElementById("table");
+      table.innerHTML = !cars.length
+        ? `<p class="empty-msg">No cars found.</p>`
+        : `<table>
+            <thead><tr><th>Plate</th><th>Make/Model</th><th>Category</th><th>Owner</th><th></th></tr></thead>
+            <tbody>
+              ${cars.map(c => `
+                <tr>
+                  <td>${escapeHtml(c.plateNumber)}</td>
+                  <td>${escapeHtml(c.make)} ${escapeHtml(c.model || "")}</td>
+                  <td>${escapeHtml(c.category)}</td>
+                  <td>${c.customer ? escapeHtml(c.customer.name) : "—"}</td>
+                  <td><a href="car.html?id=${c._id}">View</a></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+    }
+
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+      const q = qs("q") || "";
+      document.getElementById("q").value = q;
+      await load(q);
+      document.getElementById("searchForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        load(document.getElementById("q").value);
+      });
+    })();
+  </script>
+</body>
+</html>

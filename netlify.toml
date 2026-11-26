@@ -1,0 +1,15 @@
+# Deploys ONLY the static frontend (the "public" folder) to Netlify.
+#
+# Netlify serves static files only — it cannot run this project's Node/Express/MongoDB backend.
+# You must deploy the backend separately (e.g. Render, Railway, Fly.io, a VPS) and then set
+# OAS_API_BASE in public/js/config.js to that backend's URL before deploying here.
+
+[build]
+  publish = "public"
+
+# Basic security headers (optional, safe defaults for a static site)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"

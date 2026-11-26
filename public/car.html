@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Car · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2 id="pageTitle">Car</h2>
+      <a class="btn btn-accent" id="newVisitLink" href="#">+ New Service Visit</a>
+    </div>
+
+    <div class="card" id="infoCard"></div>
+    <div class="card">
+      <h3 style="margin-top:0;">Service History</h3>
+      <div id="visitsTable"></div>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const id = qs("id");
+      if (!id) { window.location.href = "cars.html"; return; }
+
+      let data;
+      try {
+        data = await apiFetch(`/api/cars/${id}`);
+      } catch (err) {
+        document.querySelector(".main").innerHTML = `<div class="card"><p>${escapeHtml(err.message)}</p><a class="btn" href="cars.html">Back</a></div>`;
+        return;
+      }
+      const { car, visits } = data;
+
+      document.getElementById("pageTitle").textContent = car.plateNumber;
+      document.getElementById("newVisitLink").href = `/visit-new.html?car=${car._id}`;
+      document.getElementById("infoCard").innerHTML = `
+        <p><strong>Make/Model:</strong> ${escapeHtml(car.make)} ${escapeHtml(car.model || "")}</p>
+        <p><strong>Category:</strong> ${escapeHtml(car.category)}</p>
+        <p><strong>Owner:</strong> <a href="customer.html?id=${car.customer._id}">${escapeHtml(car.customer.name)}</a> (${escapeHtml(car.customer.phone)})</p>
+      `;
+
+      const visitsTable = document.getElementById("visitsTable");
+      visitsTable.innerHTML = !visits.length
+        ? `<p class="empty-msg">No service visits recorded for this car yet.</p>`
+        : `<table>
+            <thead><tr><th>Date</th><th>Services</th><th>Technicians</th><th>Total (UGX)</th><th></th></tr></thead>
+            <tbody>
+              ${visits.map(v => `
+                <tr>
+                  <td>${new Date(v.createdAt).toDateString()}</td>
+                  <td>${v.services.join(", ")}</td>
+                  <td>${v.technicians.map(t => escapeHtml(t.name)).join(", ")}</td>
+                  <td>${money(v.grandTotal)}</td>
+                  <td><a href="visit.html?id=${v._id}">Invoice</a></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+    })();
+  </script>
+</body>
+</html>

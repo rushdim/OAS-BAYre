@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card" style="text-align:center;">
+      <h1>OAS Bay</h1>
+      <p class="sub">Oyera Auto Service Bay Ltd</p>
+      <p style="color:var(--muted); font-size:13px;">Loading...</p>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      try {
+        const { user } = await apiFetch("/api/auth/me");
+        window.location.href = user ? "dashboard.html" : "login.html";
+      } catch (err) {
+        // Backend unreachable (e.g. this is a frontend-only Netlify deploy with no API base set yet).
+        window.location.href = "login.html";
+      }
+    })();
+  </script>
+</body>
+</html>

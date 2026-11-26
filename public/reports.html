@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header"><h2>Reports</h2></div>
+
+    <div class="card">
+      <form id="filterForm" style="display:flex; gap:14px; align-items:end;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>From</label>
+          <input type="date" name="from" id="from" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>To</label>
+          <input type="date" name="to" id="to" />
+        </div>
+        <button class="btn" type="submit">Filter</button>
+      </form>
+    </div>
+
+    <div id="content"></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    async function load(from = "", to = "") {
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const { totalRevenue, totalVisits, topParts, techWorkload } = await apiFetch("/api/reports?" + params.toString());
+
+      document.getElementById("content").innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="label">Total Visits</div><div class="value">${totalVisits}</div></div>
+          <div class="stat-card"><div class="label">Total Revenue (UGX)</div><div class="value">${money(totalRevenue)}</div></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Most-Used Parts</h3>
+          ${!topParts.length ? `<p class="empty-msg">No parts usage in this period.</p>` : `
+            <table>
+              <thead><tr><th>Part</th><th>Quantity Used</th></tr></thead>
+              <tbody>${topParts.map(([name, qty]) => `<tr><td>${escapeHtml(name)}</td><td>${qty}</td></tr>`).join("")}</tbody>
+            </table>`}
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Technician Workload</h3>
+          ${!techWorkload.length ? `<p class="empty-msg">No technician activity in this period.</p>` : `
+            <table>
+              <thead><tr><th>Technician</th><th>Visits Assigned</th></tr></thead>
+              <tbody>${techWorkload.map(([name, count]) => `<tr><td>${escapeHtml(name)}</td><td>${count}</td></tr>`).join("")}</tbody>
+            </table>`}
+        </div>
+      `;
+    }
+
+    (async () => {
+      const user = await requireAuth(true);
+      if (!user) return;
+      await load();
+      document.getElementById("filterForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        load(document.getElementById("from").value, document.getElementById("to").value);
+      });
+    })();
+  </script>
+</body>
+</html>

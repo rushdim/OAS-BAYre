@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Customer · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header"><h2>Add Customer</h2></div>
+    <div id="errorBox" class="error-msg" style="display:none;"></div>
+
+    <div class="card">
+      <form class="form-box" id="form">
+        <div class="form-group">
+          <label>Full name</label>
+          <input type="text" name="name" required />
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" name="phone" required />
+        </div>
+        <div class="form-group">
+          <label>Email (optional)</label>
+          <input type="email" name="email" />
+        </div>
+        <button class="btn" type="submit">Save Customer</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      document.getElementById("form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errorBox = document.getElementById("errorBox");
+        errorBox.style.display = "none";
+        const form = new FormData(e.target);
+        try {
+          const { customer } = await apiFetch("/api/customers", {
+            method: "POST",
+            body: JSON.stringify({ name: form.get("name"), phone: form.get("phone"), email: form.get("email") }),
+          });
+          window.location.href = `customer.html?id=${customer._id}`;
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.style.display = "block";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

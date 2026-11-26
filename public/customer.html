@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2 id="pageTitle">Customer</h2>
+      <a class="btn btn-accent" id="addCarLink" href="#">+ Register Car</a>
+    </div>
+
+    <div class="card" id="infoCard"></div>
+    <div class="card">
+      <h3 style="margin-top:0;">Cars</h3>
+      <div id="carsTable"></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">Service History</h3>
+      <div id="visitsTable"></div>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const id = qs("id");
+      if (!id) { window.location.href = "customers.html"; return; }
+
+      let data;
+      try {
+        data = await apiFetch(`/api/customers/${id}`);
+      } catch (err) {
+        document.querySelector(".main").innerHTML = `<div class="card"><p>${escapeHtml(err.message)}</p><a class="btn" href="customers.html">Back</a></div>`;
+        return;
+      }
+      const { customer, cars, visits } = data;
+
+      document.getElementById("pageTitle").textContent = customer.name;
+      document.getElementById("addCarLink").href = `/car-new.html?customer=${customer._id}`;
+      document.getElementById("infoCard").innerHTML = `
+        <p><strong>Phone:</strong> ${escapeHtml(customer.phone)}</p>
+        ${customer.email ? `<p><strong>Email:</strong> ${escapeHtml(customer.email)}</p>` : ""}
+      `;
+
+      const carsTable = document.getElementById("carsTable");
+      carsTable.innerHTML = !cars.length
+        ? `<p class="empty-msg">No cars registered for this customer yet.</p>`
+        : `<table>
+            <thead><tr><th>Plate</th><th>Make/Model</th><th>Category</th><th></th></tr></thead>
+            <tbody>
+              ${cars.map(c => `
+                <tr>
+                  <td>${escapeHtml(c.plateNumber)}</td>
+                  <td>${escapeHtml(c.make)} ${escapeHtml(c.model || "")}</td>
+                  <td>${escapeHtml(c.category)}</td>
+                  <td><a href="car.html?id=${c._id}">View</a></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+
+      const visitsTable = document.getElementById("visitsTable");
+      visitsTable.innerHTML = !visits.length
+        ? `<p class="empty-msg">No service visits yet.</p>`
+        : `<table>
+            <thead><tr><th>Date</th><th>Car</th><th>Services</th><th>Total (UGX)</th><th></th></tr></thead>
+            <tbody>
+              ${visits.map(v => `
+                <tr>
+                  <td>${new Date(v.createdAt).toDateString()}</td>
+                  <td>${v.car ? escapeHtml(v.car.plateNumber) : "—"}</td>
+                  <td>${v.services.join(", ")}</td>
+                  <td>${money(v.grandTotal)}</td>
+                  <td><a href="visit.html?id=${v._id}">Invoice</a></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New Service Visit · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header"><h2>New Service Visit</h2></div>
+    <div id="errorBox" class="error-msg" style="display:none;"></div>
+
+    <div class="card">
+      <form id="visitForm">
+        <div class="form-group">
+          <label>Car</label>
+          <select name="car" id="carSelect" required>
+            <option value="">-- Select car --</option>
+          </select>
+        </div>
+        <p style="font-size:13px;"><a href="car-new.html">+ Register a car not listed?</a></p>
+
+        <div class="form-group">
+          <label>Services performed</label>
+          <div class="checkbox-grid">
+            <label><input type="checkbox" name="services" value="engine_oil_change" /> Engine oil &amp; filter change</label>
+            <label><input type="checkbox" name="services" value="gearbox_oil_change" /> Gearbox oil &amp; filter change</label>
+            <label><input type="checkbox" name="services" value="brake_fluid_change" /> Brake fluid change</label>
+            <label><input type="checkbox" name="services" value="brake_pad_change" /> Brake pad change</label>
+            <label><input type="checkbox" name="services" value="greasing" /> Greasing</label>
+            <label><input type="checkbox" name="services" value="wheel_alignment" /> Wheel alignment (30,000 UGX)</label>
+            <label><input type="checkbox" name="services" value="wheel_balance" /> Wheel balance (20,000 UGX)</label>
+            <label><input type="checkbox" name="services" id="otherRepairCheck" value="other_repair" /> Other minor repair</label>
+          </div>
+          <p style="font-size:12px; color:var(--muted); margin-top:8px;">Labour charge of 20,000 UGX is applied automatically for any bay service (oil, brake, greasing).</p>
+        </div>
+
+        <div class="form-group" id="otherRepairFields" style="display:none;">
+          <label>Other repair description</label>
+          <input type="text" name="otherRepairNote" placeholder="Describe the repair" />
+          <label style="margin-top:10px;">Other repair charge (UGX)</label>
+          <input type="number" name="otherRepairCharge" min="0" value="0" />
+        </div>
+
+        <div class="form-group">
+          <label>Technician(s) assigned</label>
+          <div class="checkbox-grid" id="techGrid"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Parts used (selected by the senior technician)</label>
+          <div id="partRows"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="addPartRow">+ Add Part</button>
+        </div>
+
+        <button class="btn btn-accent" type="submit" style="margin-top:10px;">Save Service Visit</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    let PARTS = [];
+
+    function addPartRow() {
+      const row = document.createElement("div");
+      row.className = "part-row";
+      row.innerHTML = `
+        <div class="form-group" style="margin-bottom:0;">
+          <select class="partSelect">
+            <option value="">-- Select part --</option>
+            ${PARTS.map(p => `<option value="${p._id}">${escapeHtml(p.name)} — ${money(p.unitPrice)} UGX (stock: ${p.stockQty})</option>`).join("")}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <input type="number" class="partQty" min="1" value="1" placeholder="Qty" />
+        </div>
+        <button type="button" class="btn btn-small btn-secondary removeRow">Remove</button>
+      `;
+      row.querySelector(".removeRow").addEventListener("click", () => row.remove());
+      document.getElementById("partRows").appendChild(row);
+    }
+
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const [{ cars }, { technicians }, { parts }] = await Promise.all([
+        apiFetch("/api/cars"),
+        apiFetch("/api/technicians"),
+        apiFetch("/api/parts"),
+      ]);
+      PARTS = parts;
+
+      const preselectCar = qs("car") || "";
+      const carSelect = document.getElementById("carSelect");
+      carSelect.innerHTML += cars.map(c =>
+        `<option value="${c._id}" ${c._id === preselectCar ? "selected" : ""}>${escapeHtml(c.plateNumber)} — ${escapeHtml(c.make)} ${escapeHtml(c.model || "")} (${c.customer ? escapeHtml(c.customer.name) : "unknown owner"})</option>`
+      ).join("");
+
+      const activeTechs = technicians.filter(t => t.active);
+      document.getElementById("techGrid").innerHTML = activeTechs.map(t =>
+        `<label><input type="checkbox" name="technicians" value="${t._id}" /> ${escapeHtml(t.name)}${t.isSenior ? " (senior)" : ""}</label>`
+      ).join("");
+
+      document.getElementById("otherRepairCheck").addEventListener("change", (e) => {
+        document.getElementById("otherRepairFields").style.display = e.target.checked ? "block" : "none";
+      });
+
+      document.getElementById("addPartRow").addEventListener("click", addPartRow);
+      addPartRow(); // start with one row
+
+      document.getElementById("visitForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errorBox = document.getElementById("errorBox");
+        errorBox.style.display = "none";
+
+        const services = Array.from(document.querySelectorAll('input[name="services"]:checked')).map(el => el.value);
+        const technicianIds = Array.from(document.querySelectorAll('input[name="technicians"]:checked')).map(el => el.value);
+        const partItems = Array.from(document.querySelectorAll(".part-row")).map(row => ({
+          partId: row.querySelector(".partSelect").value,
+          qty: row.querySelector(".partQty").value,
+        })).filter(p => p.partId);
+
+        const form = new FormData(e.target);
+
+        try {
+          const { visit } = await apiFetch("/api/visits", {
+            method: "POST",
+            body: JSON.stringify({
+              car: form.get("car"),
+              services,
+              technicians: technicianIds,
+              otherRepairNote: form.get("otherRepairNote"),
+              otherRepairCharge: form.get("otherRepairCharge"),
+              parts: partItems,
+            }),
+          });
+          window.location.href = `visit.html?id=${visit._id}`;
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.style.display = "block";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

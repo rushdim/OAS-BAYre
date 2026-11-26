@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invoice · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header no-print">
+      <h2>Service Invoice</h2>
+      <button class="btn btn-secondary" onclick="window.print()">Print</button>
+    </div>
+    <div id="content"></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const id = qs("id");
+      if (!id) { window.location.href = "visits.html"; return; }
+
+      let data;
+      try {
+        data = await apiFetch(`/api/visits/${id}`);
+      } catch (err) {
+        document.getElementById("content").innerHTML = `<div class="card"><p>${escapeHtml(err.message)}</p><a class="btn" href="visits.html">Back</a></div>`;
+        return;
+      }
+      const { visit } = data;
+
+      const chargeRow = (label, amount) => amount > 0
+        ? `<tr><td>${label}</td><td class="amount">1</td><td class="amount">${money(amount)}</td><td class="amount">${money(amount)}</td></tr>`
+        : "";
+
+      document.getElementById("content").innerHTML = `
+        <div class="card">
+          <div class="invoice-header">
+            <div>
+              <h3 style="margin:0;">Oyera Auto Service Bay Ltd</h3>
+              <p style="margin:4px 0; color:var(--muted); font-size:13px;">Service Invoice</p>
+            </div>
+            <div style="text-align:right; font-size:13px;">
+              <div>Date: ${new Date(visit.createdAt).toDateString()}</div>
+              <div>Invoice #: ${visit._id.slice(-8).toUpperCase()}</div>
+            </div>
+          </div>
+          <p><strong>Car:</strong> ${escapeHtml(visit.car.plateNumber)} — ${escapeHtml(visit.car.make)} ${escapeHtml(visit.car.model || "")} (${escapeHtml(visit.car.category)})</p>
+          <p><strong>Owner:</strong> ${escapeHtml(visit.car.customer.name)} — ${escapeHtml(visit.car.customer.phone)}</p>
+          <p><strong>Technician(s):</strong> ${visit.technicians.map(t => escapeHtml(t.name)).join(", ")}</p>
+          <p><strong>Services:</strong> ${visit.services.map(s => s.replace(/_/g, " ")).join(", ")}</p>
+          ${visit.otherRepairNote ? `<p><strong>Other repair note:</strong> ${escapeHtml(visit.otherRepairNote)}</p>` : ""}
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Charges</h3>
+          <table class="line-item-table">
+            <thead><tr><th>Item</th><th class="amount">Qty</th><th class="amount">Unit Price (UGX)</th><th class="amount">Total (UGX)</th></tr></thead>
+            <tbody>
+              ${visit.partsUsed.map(p => `
+                <tr>
+                  <td>${escapeHtml(p.name)}</td>
+                  <td class="amount">${p.quantity}</td>
+                  <td class="amount">${money(p.unitPrice)}</td>
+                  <td class="amount">${money(p.lineTotal)}</td>
+                </tr>`).join("")}
+              ${chargeRow("Labour charge", visit.labourCharge)}
+              ${chargeRow("Wheel alignment", visit.wheelAlignmentCharge)}
+              ${chargeRow("Wheel balance", visit.wheelBalanceCharge)}
+              ${chargeRow("Other repair", visit.otherRepairCharge)}
+            </tbody>
+          </table>
+          <div style="text-align:right; margin-top:16px;">
+            <span class="invoice-total">Grand Total: UGX ${money(visit.grandTotal)}</span>
+          </div>
+        </div>
+      `;
+    })();
+  </script>
+</body>
+</html>

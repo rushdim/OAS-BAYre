@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customers · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2>Customers</h2>
+      <a class="btn btn-accent" href="customer-new.html">+ Add Customer</a>
+    </div>
+
+    <div class="search-bar">
+      <form id="searchForm">
+        <input type="text" id="q" name="q" placeholder="Search by name or phone..." />
+      </form>
+    </div>
+
+    <div class="card"><div id="table"></div></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    async function load(q = "") {
+      const { customers } = await apiFetch("/api/customers" + (q ? `?q=${encodeURIComponent(q)}` : ""));
+      const table = document.getElementById("table");
+      if (!customers.length) {
+        table.innerHTML = `<p class="empty-msg">No customers found.</p>`;
+        return;
+      }
+      table.innerHTML = `
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th></th></tr></thead>
+          <tbody>
+            ${customers.map(c => `
+              <tr>
+                <td>${escapeHtml(c.name)}</td>
+                <td>${escapeHtml(c.phone)}</td>
+                <td>${escapeHtml(c.email || "—")}</td>
+                <td><a href="customer.html?id=${c._id}">View</a></td>
+              </tr>`).join("")}
+          </tbody>
+        </table>`;
+    }
+
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+      const q = qs("q") || "";
+      document.getElementById("q").value = q;
+      await load(q);
+
+      document.getElementById("searchForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        load(document.getElementById("q").value);
+      });
+    })();
+  </script>
+</body>
+</html>

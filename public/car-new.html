@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Car · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header"><h2>Register Car</h2></div>
+    <div id="errorBox" class="error-msg" style="display:none;"></div>
+
+    <div class="card">
+      <form class="form-box" id="form">
+        <div class="form-group">
+          <label>Owner (customer)</label>
+          <select name="customer" id="customerSelect" required>
+            <option value="">-- Select customer --</option>
+          </select>
+        </div>
+        <p style="font-size:13px;"><a href="customer-new.html">+ New customer not listed?</a></p>
+
+        <div class="form-group">
+          <label>Plate number</label>
+          <input type="text" name="plateNumber" required />
+        </div>
+        <div class="form-group">
+          <label>Make</label>
+          <input type="text" name="make" required placeholder="e.g. Toyota" />
+        </div>
+        <div class="form-group">
+          <label>Model (optional)</label>
+          <input type="text" name="model" placeholder="e.g. Hilux" />
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select name="category" required>
+            <option value="">-- Select category --</option>
+            <option value="small">Small</option>
+            <option value="heavy">Heavy</option>
+            <option value="commercial">Commercial</option>
+          </select>
+        </div>
+        <button class="btn" type="submit">Save Car</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const { customers } = await apiFetch("/api/customers");
+      const preselect = qs("customer") || "";
+      const select = document.getElementById("customerSelect");
+      select.innerHTML += customers.map(c =>
+        `<option value="${c._id}" ${c._id === preselect ? "selected" : ""}>${escapeHtml(c.name)} (${escapeHtml(c.phone)})</option>`
+      ).join("");
+
+      document.getElementById("form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errorBox = document.getElementById("errorBox");
+        errorBox.style.display = "none";
+        const form = new FormData(e.target);
+        try {
+          const { car } = await apiFetch("/api/cars", {
+            method: "POST",
+            body: JSON.stringify({
+              customer: form.get("customer"),
+              plateNumber: form.get("plateNumber"),
+              make: form.get("make"),
+              model: form.get("model"),
+              category: form.get("category"),
+            }),
+          });
+          window.location.href = `car.html?id=${car._id}`;
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.style.display = "block";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

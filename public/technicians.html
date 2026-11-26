@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Technicians · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2>Technicians</h2>
+      <a class="btn btn-accent" id="addLink" href="technician-new.html" style="display:none;">+ Add Technician</a>
+    </div>
+    <div class="card"><div id="table"></div></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    async function load(isAdmin) {
+      const { technicians } = await apiFetch("/api/technicians");
+      const table = document.getElementById("table");
+      if (!technicians.length) {
+        table.innerHTML = `<p class="empty-msg">No technicians registered yet.</p>`;
+        return;
+      }
+      table.innerHTML = `
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Senior?</th><th>Status</th>${isAdmin ? "<th></th>" : ""}</tr></thead>
+          <tbody>
+            ${technicians.map(t => `
+              <tr>
+                <td>${escapeHtml(t.name)}</td>
+                <td>${escapeHtml(t.phone || "—")}</td>
+                <td>${t.isSenior ? "Yes" : "No"}</td>
+                <td>${t.active ? "Active" : "Inactive"}</td>
+                ${isAdmin ? `
+                  <td>
+                    <form class="toggleForm" data-id="${t._id}">
+                      <button class="btn btn-small btn-secondary" type="submit">${t.active ? "Deactivate" : "Activate"}</button>
+                    </form>
+                  </td>` : ""}
+              </tr>`).join("")}
+          </tbody>
+        </table>`;
+
+      document.querySelectorAll(".toggleForm").forEach(form => {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          await apiFetch(`/api/technicians/${form.dataset.id}/toggle-active`, { method: "POST" });
+          load(isAdmin);
+        });
+      });
+    }
+
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+      const isAdmin = user.role === "admin";
+      if (isAdmin) document.getElementById("addLink").style.display = "inline-block";
+      await load(isAdmin);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2>Dashboard</h2>
+      <a class="btn btn-accent" href="visit-new.html">+ New Service Visit</a>
+    </div>
+
+    <div class="stat-grid" id="statGrid"></div>
+    <div id="lowStockCard"></div>
+    <div class="card">
+      <h3 style="margin-top:0;">Today's Visits</h3>
+      <div id="visitsTable"></div>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const { todaysVisits, todaysRevenue, lowStockParts, totalCars, totalCustomers } = await apiFetch("/api/dashboard");
+
+      document.getElementById("statGrid").innerHTML = `
+        <div class="stat-card"><div class="label">Visits Today</div><div class="value">${todaysVisits.length}</div></div>
+        <div class="stat-card"><div class="label">Revenue Today (UGX)</div><div class="value">${money(todaysRevenue)}</div></div>
+        <div class="stat-card"><div class="label">Total Cars Registered</div><div class="value">${totalCars}</div></div>
+        <div class="stat-card"><div class="label">Total Customers</div><div class="value">${totalCustomers}</div></div>
+      `;
+
+      if (lowStockParts.length) {
+        document.getElementById("lowStockCard").innerHTML = `
+          <div class="card">
+            <h3 style="margin-top:0;">⚠ Low Stock Alerts</h3>
+            <table>
+              <thead><tr><th>Part</th><th>Category</th><th>In Stock</th><th>Reorder Level</th></tr></thead>
+              <tbody>
+                ${lowStockParts.map(p => `
+                  <tr>
+                    <td>${escapeHtml(p.name)}</td>
+                    <td>${escapeHtml(p.category)}</td>
+                    <td><span class="badge badge-low">${p.stockQty}</span></td>
+                    <td>${p.reorderLevel}</td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      const table = document.getElementById("visitsTable");
+      if (!todaysVisits.length) {
+        table.innerHTML = `<p class="empty-msg">No service visits recorded yet today.</p>`;
+      } else {
+        table.innerHTML = `
+          <table>
+            <thead><tr><th>Car</th><th>Services</th><th>Total (UGX)</th><th></th></tr></thead>
+            <tbody>
+              ${todaysVisits.map(v => `
+                <tr>
+                  <td>${v.car ? escapeHtml(v.car.plateNumber) : "—"}</td>
+                  <td>${v.services.join(", ")}</td>
+                  <td>${money(v.grandTotal)}</td>
+                  <td><a href="visit.html?id=${v._id}">View</a></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Service Visits · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2>Service Visits</h2>
+      <a class="btn btn-accent" href="visit-new.html">+ New Visit</a>
+    </div>
+
+    <div class="search-bar">
+      <form id="searchForm">
+        <input type="text" id="q" placeholder="Search by plate number..." />
+      </form>
+    </div>
+
+    <div class="card"><div id="table"></div></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    async function load(q = "") {
+      const { visits } = await apiFetch("/api/visits" + (q ? `?q=${encodeURIComponent(q)}` : ""));
+      const table = document.getElementById("table");
+      table.innerHTML = !visits.length
+        ? `<p class="empty-msg">No service visits recorded yet.</p>`
+        : `<table>
+            <thead><tr><th>Date</th><th>Car</th><th>Customer</th><th>Services</th><th>Technicians</th><th>Total (UGX)</th><th></th></tr></thead>
+            <tbody>
+              ${visits.map(v => `
+                <tr>
+                  <td>${new Date(v.createdAt).toDateString()}</td>
+                  <td>${v.car ? escapeHtml(v.car.plateNumber) : "—"}</td>
+                  <td>${v.car && v.car.customer ? escapeHtml(v.car.customer.name) : "—"}</td>
+                  <td>${v.services.join(", ")}</td>
+                  <td>${v.technicians.map(t => escapeHtml(t.name)).join(", ")}</td>
+                  <td>${money(v.grandTotal)}</td>
+                  <td><a href="visit.html?id=${v._id}">Invoice</a></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+    }
+
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+      const q = qs("q") || "";
+      document.getElementById("q").value = q;
+      await load(q);
+      document.getElementById("searchForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        load(document.getElementById("q").value);
+      });
+    })();
+  </script>
+</body>
+</html>

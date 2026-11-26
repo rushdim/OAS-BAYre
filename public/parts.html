@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parts Inventory · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header">
+      <h2>Parts Inventory</h2>
+      <a class="btn btn-accent" id="addPartLink" href="part-new.html" style="display:none;">+ Add Part</a>
+    </div>
+    <div class="card"><div id="table"></div></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+      const isAdmin = user.role === "admin";
+      if (isAdmin) document.getElementById("addPartLink").style.display = "inline-block";
+
+      const { parts } = await apiFetch("/api/parts");
+      const table = document.getElementById("table");
+
+      if (!parts.length) {
+        table.innerHTML = `<p class="empty-msg">No parts in the catalog yet.</p>`;
+        return;
+      }
+
+      table.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Category</th><th>Unit Price (UGX)</th><th>Stock</th>
+              ${isAdmin ? "<th>Restock</th>" : ""}
+            </tr>
+          </thead>
+          <tbody>
+            ${parts.map(p => `
+              <tr>
+                <td>${escapeHtml(p.name)}</td>
+                <td>${escapeHtml(p.category.replace("_", " "))}</td>
+                <td>${money(p.unitPrice)}</td>
+                <td><span class="badge ${p.stockQty <= p.reorderLevel ? "badge-low" : "badge-ok"}">${p.stockQty}</span></td>
+                ${isAdmin ? `
+                  <td>
+                    <form class="restockForm" data-id="${p._id}" style="display:flex; gap:6px;">
+                      <input type="number" name="qty" min="1" value="10" style="width:70px; padding:4px 6px;" />
+                      <button class="btn btn-small btn-secondary" type="submit">+ Add</button>
+                    </form>
+                  </td>` : ""}
+              </tr>`).join("")}
+          </tbody>
+        </table>`;
+
+      document.querySelectorAll(".restockForm").forEach(form => {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const qty = new FormData(e.target).get("qty");
+          await apiFetch(`/api/parts/${form.dataset.id}/restock`, { method: "POST", body: JSON.stringify({ qty }) });
+          window.location.reload();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

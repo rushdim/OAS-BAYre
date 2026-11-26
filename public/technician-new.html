@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Technician · OAS Bay</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <aside class="sidebar no-print" id="sidebar"></aside>
+  <main class="main">
+    <div class="page-header"><h2>Add Technician</h2></div>
+    <div id="errorBox" class="error-msg" style="display:none;"></div>
+
+    <div class="card">
+      <form class="form-box" id="form">
+        <div class="form-group">
+          <label>Full name</label>
+          <input type="text" name="name" required />
+        </div>
+        <div class="form-group">
+          <label>Phone (optional)</label>
+          <input type="text" name="phone" />
+        </div>
+        <div class="form-group checkbox-row">
+          <input type="checkbox" name="isSenior" id="isSenior" />
+          <label for="isSenior" style="margin:0;">Senior technician (authorizes parts selection)</label>
+        </div>
+        <button class="btn" type="submit">Save Technician</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth(true);
+      if (!user) return;
+
+      document.getElementById("form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errorBox = document.getElementById("errorBox");
+        errorBox.style.display = "none";
+        const form = new FormData(e.target);
+        try {
+          await apiFetch("/api/technicians", {
+            method: "POST",
+            body: JSON.stringify({
+              name: form.get("name"),
+              phone: form.get("phone"),
+              isSenior: form.get("isSenior") === "on",
+            }),
+          });
+          window.location.href = "technicians.html";
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.style.display = "block";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
